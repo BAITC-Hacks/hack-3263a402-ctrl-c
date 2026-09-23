@@ -19,6 +19,6 @@ state.courses=[course];assert.equal(courseStats(state,course).percent,0);
 for(const q of lesson.questions)state.attempts.push({id:q.key,course_id:'c',lesson_id:'l',question_key:q.key,correct:1,resolved:0} as any);
 assert.equal(courseStats(state,course).percent,100);
 const library=renderToStaticMarkup(<BlitzLibrary state={state} onCreate={()=>{}} onChoose={()=>{}}/>);assert(library.includes('aria-valuenow="100"'));assert(!library.includes('Карта обучения'));
-const route=renderToStaticMarkup(<CourseRoute course={course} state={state} onBack={()=>{}} onLesson={()=>{}} onProject={()=>{}}/>);assert(route.includes('Все мои блицы'));assert(route.includes('Пройден'));
+const route=renderToStaticMarkup(<CourseRoute course={course} state={state} onBack={()=>{}} onLesson={()=>{}} onProject={()=>{}} onPublish={()=>{}}/>);assert(route.includes('Все мои блицы'));assert(route.includes('Пройден'));
 const theory=renderToStaticMarkup(<LessonTheory lesson={lesson} onPractice={()=>{}} onExplain={()=>{}} onExpand={()=>{}}/>);assert(theory.includes('textbook-example'));assert(!theory.includes('<pre>'));
 console.log('PASS: chart scale validation, numeric SVG geometry, empty library, earned progress, separate route, prose example rendering');
