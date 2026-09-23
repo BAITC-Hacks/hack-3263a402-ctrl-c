@@ -8,6 +8,20 @@
       "when": 1790014601901,
       "tag": "0000_lethal_masked_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790158432131,
+      "tag": "0001_freezing_imperial_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790165716888,
+      "tag": "0002_omniscient_grey_gargoyle",
+      "breakpoints": true
     }
   ]
 }

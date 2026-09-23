@@ -1,0 +1,25 @@
+import {strict as assert} from 'node:assert';
+import {rankFor,thresholds,earnedAwards,projectPoints,eventKey} from '../lib/experience';
+import {scheduleReview,DAY,publicDeck,parseCards} from '../lib/cards';
+import {builtin,publicCourse,outlineSchema} from '../lib/course';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {ProgressDashboard,RankCard} from '../components/blitz/experience';
+import type {LearningState,Attempt} from '../lib/types';
+thresholds.forEach((n,i)=>{assert.equal(rankFor(n).level,i+1);assert.equal(rankFor(n).percent,i===29?100:0);if(i)assert.equal(rankFor(n-1).level,i);});
+assert.equal(rankFor(9884).level,17);assert.equal(rankFor(9884).percent,68);assert.equal(rankFor(9884).next,10300);assert.equal(rankFor(90000).level,30);assert.equal(rankFor(90000).total,90000);
+assert.deepEqual(['small','large'].flatMap(size=>['simple','standard','advanced'].map(complexity=>projectPoints({size,complexity}))),[150,225,300,300,450,600]);
+const course=publicCourse(builtin);course.levels=course.levels.slice(0,1);course.levels[0].lessons=course.levels[0].lessons.slice(0,1);const lesson=course.levels[0].lessons[0];
+const make=(key:string,correct=1,resolved=0):Attempt=>({id:crypto.randomUUID(),course_id:course.id,lesson_id:lesson.id,question_key:key,answer:'a',correct,resolved,snapshot:'{}',created_at:Date.now(),remediate_for:null});
+const state:LearningState={courses:[course],attempts:[],projects:[],signedIn:true,aiReady:true};
+assert.equal(earnedAwards(state).length,0);state.attempts=lesson.questions.filter(q=>q.key!=='transfer').map(q=>make(q.key));
+const full=earnedAwards(state);assert.equal(full.reduce((n,a)=>n+a.points,0),230); // 2 correct + 30 test + 50 bonus + 30 practice + 100 stage
+state.attempts.push(...state.attempts);assert.deepEqual(earnedAwards(state),full);
+state.attempts.push(make('q0',0,1));assert(!earnedAwards(state).some(a=>a.label==='Ошибка исправлена'));
+state.attempts.unshift(make('q0',0,1));assert.equal(earnedAwards(state).find(a=>a.key===eventKey(course.id,lesson.id,'answer','q0'))?.points,5);assert(!earnedAwards(state).some(a=>a.key.includes('test-bonus')));assert.equal(earnedAwards(state).filter(a=>a.label==='Ошибка исправлена').length,1);
+assert.equal(scheduleReview(null,true,100).points,3);assert.equal(scheduleReview(null,true,100).next,100+3*DAY);
+const first={next_review_at:100+3*DAY,stage:1,successful_reviews:1};assert.equal(scheduleReview(first,true,101).points,0);assert.equal(scheduleReview(first,true,first.next_review_at).points,5);assert.equal(scheduleReview(first,true,first.next_review_at).next,first.next_review_at+7*DAY);assert.equal(scheduleReview(null,false,100).next,100+DAY);
+const raw={статус:'готово',недостающие_поля:[],название:'Общение',тема_урока:'Слушать',количество_карточек:12,карточки:Array.from({length:12},(_,i)=>({идентификатор:String(i),тип:'понятие',уровень:'понимание',приоритет:'высокий',раздел_урока:'Уточнения',проверяет:'Понимание',лицевая_сторона:`Вопрос ${i}`,обратная_сторона:'Эталон',допустимые_формулировки:['Верный пересказ'],пояснение:'Объяснение',типичная_ошибка:'',теги:['смысл']})),покрытие:[{результат_урока:'Уточнять',карточки:['0']}],заметки:[]};
+const deck=parseCards(raw);assert.equal(deck.cards.length,12);assert(!JSON.stringify(publicDeck(deck,'c','l')).includes('Эталон'));assert.throws(()=>parseCards({...raw,карточки:raw.карточки.slice(0,10)}));assert.throws(()=>parseCards({...raw,покрытие:[{результат_урока:'Уточнять',карточки:['absent']}]}));
+const outline={title:'Публичная речь',subject:'Коммуникация',source:'Цель',levels:[{id:'one',title:'Основы',subtitle:'Шаг',lessons:[{id:'one-a',title:'Слушатель'}],project:null}]};assert(outlineSchema.safeParse(outline).success);assert(!outlineSchema.safeParse({...outline,levels:[]}).success);
+const html=renderToStaticMarkup(<ProgressDashboard state={state} onLesson={()=>{}}/>);assert(html.includes('progress-tile'));assert(html.includes('<details'));const rank=renderToStaticMarkup(<RankCard total={9884}/>);assert(rank.includes('68%'));assert(rank.includes('Мастер анализа'));
+console.log('PASS: all 30 ranks, within-rank percentage, one-off XP, frozen first answers, remediation guard, due-card schedule, hidden answers, variable topic maps, tiled progress');

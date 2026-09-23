@@ -5,7 +5,7 @@ user='blitz-smoke-'+str(uuid.uuid4())
 jar=http.cookiejar.CookieJar()
 opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
 opener.open(base+'/signin-with-chatgpt?return_to=/')
-headers={'Content-Type':'application/json','Origin':base}
+headers={'Content-Type':'application/json','Origin':base,'X-Blitz-CSRF':'1'}
 def call(body=None,extra=None):
  req=urllib.request.Request(base+'/api/learn',data=None if body is None else json.dumps(body).encode(),headers={**headers,**(extra or {})})
  try:

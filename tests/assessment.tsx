@@ -1,0 +1,30 @@
+import {strict as assert} from "node:assert";
+import {renderToStaticMarkup} from "react-dom/server";
+import {acceptAssessment,assessmentResponseSchema} from "../lib/assessment";
+import {builtin,publicCourse,question,type FullCourse} from "../lib/course";
+import {lessonComplete,type LearningState,type Attempt} from "../lib/types";
+import {TheoryMarkdown} from "../components/blitz/theory-markdown";
+import {theorySectionId} from "../lib/theory-sections";
+import {matchesAnswer} from "../lib/check-answer";
+const sample={статус:"готово",недостающие_поля:[],название:"Смысл реплики",тема_урока:"Общение",количество_вопросов:10,
+ вопросы:Array.from({length:10},(_,i)=>({идентификатор:`в${i+1}`,тип:"один_ответ",сложность:"базовая",проверяет:"Различать уточнение и догадку",раздел_урока:"Смысл реплики",вопрос:`Самодостаточный вопрос ${i+1}`,варианты:["а","б","в","г"].map((id,index)=>({идентификатор:id,текст:`Вариант ${index+1}`,правильный:index===i%4,объяснение:`Объяснение варианта ${index+1}`})),правильный_ответ:[["а","б","в","г"][i%4]],подсказка:"Сравни смысл реплик",общее_объяснение:"Уточнение проверяет предположение",уровень_понимания:"применение"})),
+ покрытие:[{результат_урока:"Уточнять смысл",вопросы:Array.from({length:10},(_,i)=>`в${i+1}`)}],заметки:[]};
+const clone=()=>structuredClone(sample);
+const accepted=acceptAssessment(sample);assert.equal(accepted.status,"ok");if(accepted.status!=="ok")throw Error();
+assert.equal(accepted.questions.length,10);
+accepted.questions.forEach((q,i)=>{assert.equal(q.options[q.correctIndex],sample.вопросы[i].варианты[i%4].текст);q.options.forEach((text,index)=>assert.equal(q.optionExplanations[index],sample.вопросы[i].варианты.find(o=>o.текст===text)?.объяснение));});
+assert(matchesAnswer("вход","место",["вход"]));assert(matchesAnswer("место","место"));assert(!matchesAnswer("Polish","polish"));
+for(const bad of [()=>{const t=clone();t.вопросы[0].варианты[1].правильный=true;return t;},()=>{const t=clone();t.вопросы[0].правильный_ответ=["г"];return t;},()=>{const t=clone();t.покрытие[0].вопросы=["нет"];return t;},()=>{const t=clone();t.вопросы.pop();return t;},()=>{const t=clone();t.вопросы[1].идентификатор="в1";return t;},()=>{const t=clone();t.вопросы[0].варианты[1].текст=t.вопросы[0].варианты[0].текст;return t;}])assert.throws(()=>acceptAssessment(bad()));
+const language=clone();language.вопросы[0].варианты[0].текст="Polish";language.вопросы[0].варианты[1].текст="polish";assert.equal(acceptAssessment(language).status,"ok");
+assert(assessmentResponseSchema.safeParse({статус:"нужны_данные",недостающие_поля:["теория_урока"],название:"",тема_урока:"",количество_вопросов:0,вопросы:[],покрытие:[],заметки:[]}).success);
+const original=structuredClone(builtin),course:FullCourse=structuredClone(builtin);course.id="assessment-check";const lesson=course.levels[0].lessons[0];lesson.questions=accepted.questions;lesson.test=accepted.test;
+const published=publicCourse(course),l=published.levels[0].lessons[0],serialized=JSON.stringify(l.questions);
+assert.equal(l.questions.length,12);assert(!/correctIndex|correctAnswer|optionExplanations|explanation|expected/.test(serialized));
+assert.equal(question(course,l.id,"q9")?.correctAnswer,String(accepted.questions[9].correctIndex));assert.equal(question(course,l.id,"q99"),null);assert.equal(question(course,l.id,"q01"),null);
+assert.equal(publicCourse(original).levels[0].lessons[0].questions.length,4);assert.equal(original.levels[0].lessons[0].questions.length,2);
+const attempts:Attempt[]=l.questions.filter(q=>q.key!=="transfer").map((q,i)=>({id:`attempt-${i}`,course_id:course.id,lesson_id:l.id,question_key:q.key,answer:"0",correct:1,resolved:0,snapshot:"{}",created_at:i,remediate_for:null}));
+const state:LearningState={courses:[published],attempts:attempts.slice(0,2),projects:[],aiReady:true,signedIn:true};assert(!lessonComplete(state,published,l));state.attempts=attempts;assert(lessonComplete(state,published,l));
+const wrong={...attempts[0],id:"wrong",correct:0};state.attempts=[wrong,...attempts];assert(!lessonComplete(state,published,l));wrong.resolved=1;assert(lessonComplete(state,published,l));
+const html=renderToStaticMarkup(<TheoryMarkdown theory={{version:3,status:"ok",missing_fields:[],title:"Общение",lesson_outcomes:["Уточнять смысл"],content_markdown:"#### **Смысл реплики**\n\nОписание.",visuals:[],sources:[],notes:[]}} onExpand={()=>{}} renderVisual={()=>null}/>);
+assert(html.includes(`id="${theorySectionId("Смысл реплики")}"`));
+console.log("PASS: ten-question contract, consistent answers, coverage references, case-sensitive subjects, hidden answer keys, legacy compatibility, full-test progress, theory section anchors");

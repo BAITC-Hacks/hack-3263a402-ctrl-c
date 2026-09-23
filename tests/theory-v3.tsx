@@ -1,0 +1,18 @@
+import {strict as assert} from 'node:assert';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {acceptTheory,decodeReadyVisual,theoryResponseSchema,type TheoryV3} from '../lib/theory-format';
+import {TheoryMarkdown} from '../components/blitz/theory-markdown';
+const sample={status:'ok',missing_fields:[],title:'Активное слушание',lesson_outcomes:['Различать уточнение и совет'],content_markdown:'## Уточнение\n\n**Уточнение** помогает проверить смысл.\n\n> «Ты имеешь в виду срок?»\n\n| Реплика | Смысл |\n| --- | --- |\n| Я правильно понял? | Уточнение |\n\n```text\n{{visual:v9}} [s1]\n```',visuals:[],sources:[],notes:[]};
+assert.equal(acceptTheory(sample).status,'ok');
+assert.throws(()=>acceptTheory({...sample,content_markdown:'Сведения [s1]'}));
+assert.throws(()=>acceptTheory({...sample,sources:[{id:'s1',title:'Выдуманный источник',url:'https://example.com',locator:null}]}));
+assert.throws(()=>acceptTheory({...sample,content_markdown:'{{visual:v1}}'}));
+assert(theoryResponseSchema.safeParse({status:'needs_input',missing_fields:['lesson_topic'],title:'',lesson_outcomes:[],content_markdown:'',visuals:[],sources:[],notes:[]}).success);
+const v={id:'v1',format:'bar_chart',purpose:'Показать значение',status:'ready' as const,caption:'Учебные данные',alternative_text:'Значение шесть',content:JSON.stringify({kind:'bar_chart',title:'Учебные данные',unit:'шт.',yMax:8,step:2,data:[{label:'А',value:6}]}),source_ids:[]};
+assert(decodeReadyVisual(v));assert(!decodeReadyVisual({...v,content:v.content.replace('"value":6','"value":10')}));
+assert.equal(acceptTheory({...sample,content_markdown:'Пояснение.\n\n{{visual:v1}}\n\nВывод.',visuals:[v]}).status,'ok');
+assert.throws(()=>acceptTheory({...sample,content_markdown:'Вот рисунок {{visual:v1}} рядом с текстом.',visuals:[v]}));
+assert.throws(()=>acceptTheory({...sample,content_markdown:'## {{visual:v1}}',visuals:[v]}));
+const html=renderToStaticMarkup(<TheoryMarkdown theory={{...sample,version:3,status:'ok'} as TheoryV3} onExpand={()=>{}} renderVisual={()=>null}/>);
+assert(html.includes('<table>'));assert(html.includes('<strong>Уточнение</strong>'));assert(html.includes('Подробнее'));assert(html.includes('{{visual:v9}}'));assert(!html.includes('ПРОВЕРЬ СЕБЯ'));
+console.log('PASS: subject-neutral theory, missing-input contract, source integrity, visual bounds, safe Markdown and code markers');

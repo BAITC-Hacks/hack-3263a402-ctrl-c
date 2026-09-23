@@ -48,3 +48,6 @@ next-env.d.ts
 !/.env.example
 /CONTINUE.md
 *.tsbuildinfo
+
+# Generated export archives stay local.
+/exports/

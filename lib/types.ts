@@ -1,10 +1,10 @@
-export type Question={key:string;prompt:string;code?:string;options?:string[]};
-export type Lesson={id:string;title:string;theory:string;code:string;codeOutput:string;flow:string[];flashcard:{front:string;back:string};questions:Question[]};
-export type Level={id:string;title:string;subtitle:string;project:{title:string;task:string;criteria:string[]};lessons:Lesson[]};
-export type Course={id:string;title:string;source:string;levels:Level[]};
+export type Question={key:string;prompt:string;code?:string;options?:string[];hint?:string;skill?:string;section?:string;difficulty?:string;depth?:string};
+export type Lesson={id:string;title:string;ready?:boolean;test?:{version:1;title:string;coverage:{outcome:string;questionKeys:string[]}[];notes:string[]};teaching?:import("./teaching").Teaching;theory:string;code:string;codeOutput:string;flow:string[];flashcard:{front:string;back:string};questions:Question[]};
+export type Level={id:string;title:string;subtitle:string;project:{title:string;task:string;criteria:string[];size?:"small"|"large";complexity?:"simple"|"standard"|"advanced"}|null;lessons:Lesson[]};
+export type Course={id:string;title:string;source:string;subject?:string;levels:Level[]};
 export type Attempt={id:string;course_id:string;lesson_id:string;question_key:string;answer:string;correct:number;resolved:number;snapshot:string;created_at:number;remediate_for:string|null};
 export type Project={id:string;course_id:string;level_id:string;body:string;status:string;feedback:string;created_at:number};
-export type LearningState={courses:Course[];attempts:Attempt[];projects:Project[];aiReady:boolean;signedIn:boolean};
-export function lessonComplete(state:LearningState,course:Course,lesson:Lesson){return !state.attempts.some(a=>a.course_id===course.id&&a.lesson_id===lesson.id&&!a.correct&&!a.resolved&&a.question_key!=="transfer")&&lesson.questions.filter(q=>q.key!=="transfer").every(q=>state.attempts.some(a=>a.course_id===course.id&&a.lesson_id===lesson.id&&a.question_key===q.key&&a.correct===1));}
+export type LearningState={experience?:import("./experience").Experience;cardDecks?:import("./cards").PublicDeck[];cardReviews?:import("./cards").CardReview[];user?:import("./identity").PublicUser|null;courses:Course[];attempts:Attempt[];projects:Project[];aiReady:boolean;signedIn:boolean};
+export function lessonComplete(state:LearningState,course:Course,lesson:Lesson){return lesson.ready!==false&&lesson.questions.length>=3&&!state.attempts.some(a=>a.course_id===course.id&&a.lesson_id===lesson.id&&!a.correct&&!a.resolved&&a.question_key!=="transfer")&&lesson.questions.filter(q=>q.key!=="transfer").every(q=>state.attempts.some(a=>a.course_id===course.id&&a.lesson_id===lesson.id&&a.question_key===q.key&&a.correct===1));}
 export function levelOpen(state:LearningState,course:Course,index:number){return course.levels.slice(0,index).every(l=>l.lessons.every(x=>lessonComplete(state,course,x)));}
 export function courseStats(state:LearningState,course:Course){const lessons=course.levels.flatMap(l=>l.lessons);const completed=lessons.filter(l=>lessonComplete(state,course,l)).length;return{total:lessons.length,completed,percent:Math.round(completed/lessons.length*100),projects:state.projects.filter(p=>p.course_id===course.id&&p.status==="accepted").length};}

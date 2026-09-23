@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "BLITZ — станция навыков",
+  title: "BLITZ — твой следующий рывок",
   description: "Саморазвитие по уровням: выбери тему, изучи теорию, закрепи практикой и создай проект.",
   other: {
     "codex-preview": "development",
@@ -24,4 +24,3 @@ export default function RootLayout({
     </html>
   );
 }
-
